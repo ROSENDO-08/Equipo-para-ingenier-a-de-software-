@@ -40,3 +40,4 @@ for categoria_nombre, productos_en_categoria in inventario.items():
         print(f"{producto.capitalize():<10} | {'*' * cantidad} ({cantidad})")
 
 print("-"*55)
+# hola compañeros :)
