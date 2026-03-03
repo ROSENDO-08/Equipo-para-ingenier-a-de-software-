@@ -41,6 +41,7 @@ for categoria_nombre, productos_en_categoria in inventario.items():
 
 print("-"*55)
 #HEAD
-# hola compañeros :)
+# hola compañeros :)asdfasdf
 #"gato"
-#45aa1fdc44149743ed6cadd9b17460f942c125e5
+#45aa1fdc44149743ed6cadd9b17460f942c125e5 
+#hahahhaksjhkhdjk
