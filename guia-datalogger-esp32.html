@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía Completa: Data Logger ESP32 — Equipo Rosendo</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --card: #161920;
+    --border: #2a2f3d;
+    --accent: #ff6b35;
+    --blue: #00d4ff;
+    --green: #00ff88;
+    --yellow: #ffd700;
+    --red: #ff4444;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --code-bg: #0a0c10;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #0d0f14 0%, #1a1410 50%, #0d0f14 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -10%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(255,107,53,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3);
+    color: var(--accent); font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.1em;
+    padding: 0.3rem 0.8rem; border-radius: 2rem; margin-bottom: 1rem;
+  }
+  h1 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; line-height: 1.1; margin-bottom: 0.75rem; }
+  h1 span { color: var(--accent); }
+  .header-sub { color: var(--muted); font-size: 0.9rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+
+  /* PROGRESS */
+  .progress-bar-wrap {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .progress-label { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+  .progress-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--yellow)); border-radius: 3px; transition: width 0.4s ease; width: 0%; }
+  .progress-pct { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent); font-weight: 700; min-width: 3rem; text-align: right; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+  /* PHASE DIVIDER */
+  .phase {
+    display: flex; align-items: center; gap: 1rem;
+    margin: 2rem 0 1rem;
+  }
+  .phase-label {
+    background: var(--accent); color: #000;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.1em; padding: 0.3rem 0.8rem; border-radius: 2rem;
+    white-space: nowrap;
+  }
+  .phase-line { flex: 1; height: 1px; background: var(--border); }
+  .phase-title { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+
+  /* MATERIALES */
+  .materials { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+  .materials h2 { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 1rem; color: var(--accent); }
+  .mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+  .mat-item { display: flex; align-items: center; gap: 0.6rem; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.85rem; }
+  .mat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* STEPS */
+  .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.25rem; overflow: hidden; transition: border-color 0.3s; }
+  .step.done { border-color: var(--green); }
+  .step.active { border-color: var(--accent); }
+  .step-header { display: flex; align-items: center; gap: 1rem; padding: 1.2rem 1.5rem; cursor: pointer; user-select: none; }
+  .step-num { width: 36px; height: 36px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; transition: background 0.3s, color 0.3s; }
+  .step.done .step-num { background: var(--green); color: #000; }
+  .step.active .step-num { background: var(--accent); color: #000; }
+  .step-title { flex: 1; }
+  .step-title h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; }
+  .step-title p { font-size: 0.78rem; color: var(--muted); }
+  .step-toggle { color: var(--muted); font-size: 1.2rem; transition: transform 0.3s; }
+  .step.open .step-toggle { transform: rotate(180deg); }
+  .step-body { display: none; padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border); }
+  .step.open .step-body { display: block; }
+  .step-body p { font-size: 0.9rem; line-height: 1.7; color: #c5c9d6; margin-bottom: 1rem; margin-top: 0.8rem; }
+
+  /* WIRING */
+  .wiring { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 1rem 0; }
+  .wiring th { background: var(--code-bg); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+  .wiring td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+  .wiring tr:last-child td { border-bottom: none; }
+
+  /* CODE */
+  .code-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; margin: 1rem 0; position: relative; overflow-x: auto; }
+  .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.7; color: #abb2bf; white-space: pre; }
+  .code-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+  .kw { color: #c678dd; } .fn { color: #61afef; } .cm { color: #5c6370; font-style: italic; }
+  .st { color: #98c379; } .nm { color: #d19a66; } .op { color: #56b6c2; }
+  .copy-btn { position: absolute; top: 0.8rem; right: 0.8rem; background: var(--border); border: none; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer; transition: background 0.2s, color 0.2s; }
+  .copy-btn:hover { background: var(--accent); color: #000; }
+
+  /* ALERTS */
+  .alert { display: flex; gap: 0.75rem; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.85rem; line-height: 1.6; margin: 1rem 0; }
+  .alert-warn { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25); }
+  .alert-info { background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2); }
+  .alert-ok { background: rgba(0,255,136,0.06); border: 1px solid rgba(0,255,136,0.2); }
+  .alert-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* PIN NOTE */
+  .pin-note { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: var(--code-bg); border-left: 3px solid var(--accent); padding: 0.6rem 0.8rem; border-radius: 0 6px 6px 0; margin: 0.5rem 0; }
+
+  /* CHECK BUTTON */
+  .check-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: transparent; border: 1px solid var(--border); color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; margin-top: 1rem; transition: all 0.2s; }
+  .check-btn:hover { border-color: var(--green); color: var(--green); }
+  .check-btn.marked { background: rgba(0,255,136,0.1); border-color: var(--green); color: var(--green); }
+
+  /* FINAL */
+  .final-card { background: linear-gradient(135deg, rgba(255,107,53,0.05), rgba(255,215,0,0.05)); border: 1px solid rgba(255,107,53,0.3); border-radius: 12px; padding: 2rem; text-align: center; margin-top: 2rem; display: none; }
+  .final-card.visible { display: block; }
+  .final-card h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--accent); margin-bottom: 0.75rem; }
+  .final-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.7; }
+
+  /* OUTPUT BOX */
+  .output-box { background: #000; border: 1px solid var(--green); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--green); line-height: 1.8; }
+  .output-label { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">📊 Data Logger ESP32 · Equipo Rosendo · Desde cero</div>
+  <h1>Guía Completa:<br><span>Data Logger</span> con ESP32</h1>
+  <div class="header-sub">
+    <span>📅 S4–S6 · Mar–Abr 2026</span>
+    <span>🔧 MicroPython + Thonny 4.1.7</span>
+    <span>⚡ ESP32-WROOM-32 USB-C 30 pines</span>
+  </div>
+</header>
+
+<div class="progress-bar-wrap">
+  <span class="progress-label">Progreso</span>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <span class="progress-pct" id="progressPct">0%</span>
+</div>
+
+<main>
+
+  <!-- MATERIALES -->
+  <div class="materials">
+    <h2>🧰 Materiales necesarios</h2>
+    <div class="mat-grid">
+      <div class="mat-item"><div class="mat-dot" style="background:#00d4ff"></div>ESP32 DevKit USB-C 30 pines</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#00ff88"></div>LED Verde (×1)</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#aaa"></div>Resistencia 220Ω (×1)</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#555"></div>Protoboard</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#666"></div>Cables jumper M-M</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#888"></div>Sensor DHT11 o HC-SR04</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#444"></div>Cable USB al ESP32</div>
+      <div class="mat-item"><div class="mat-dot" style="background:#333"></div>Laptop con Thonny 4.1.7</div>
+    </div>
+  </div>
+
+  <!-- FASE 1 -->
+  <div class="phase">
+    <div class="phase-label">FASE 1</div>
+    <div class="phase-line"></div>
+    <div class="phase-title">Conectar Thonny al ESP32</div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step" id="step1">
+    <div class="step-header" onclick="toggleStep('step1')">
+      <div class="step-num">1</div>
+      <div class="step-title">
+        <h3>Configurar Thonny para ESP32</h3>
+        <p>Lo primero antes de cualquier código</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <p>Thonny necesita saber que está hablando con el ESP32 y no con tu computadora.</p>
+      <p><strong>Pasos:</strong><br>
+      1. Conecta el ESP32 con el cable USB-C<br>
+      2. Abre Thonny 4.1.7<br>
+      3. Ve a <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:0.8rem">Herramientas → Opciones → Intérprete</code><br>
+      4. Selecciona <strong>MicroPython (ESP32)</strong><br>
+      5. Puerto: elige el COM que aparezca (Windows: COM3/COM4 · Mac: /dev/cu.usbserial...)<br>
+      6. Clic en OK</p>
+
+      <div class="alert alert-ok">
+        <span class="alert-icon">✅</span>
+        <span>Si todo está bien verás en la parte inferior: <code style="font-family:'JetBrains Mono',monospace">MicroPython on ESP32 &gt;&gt;&gt;</code></span>
+      </div>
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <span>Si no aparece ningún puerto: prueba otro cable USB. Muchos cables son solo de carga y no transmiten datos.</span>
+      </div>
+      <button class="check-btn" onclick="markStep('step1', this)">✓ Thonny conectado — veo el >>></button>
+    </div>
+  </div>
+
+  <!-- FASE 2 -->
+  <div class="phase">
+    <div class="phase-label">FASE 2</div>
+    <div class="phase-line"></div>
+    <div class="phase-title">LED Blink — prueba de vida del ESP32</div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" id="step2">
+    <div class="step-header" onclick="toggleStep('step2')">
+      <div class="step-num">2</div>
+      <div class="step-title">
+        <h3>Conectar LED en protoboard</h3>
+        <p>Cableado físico del primer componente</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <span>Realiza el cableado con el ESP32 <strong>desconectado</strong>. Conecta el USB solo cuando termines.</span>
+      </div>
+
+      <table class="wiring">
+        <tr><th>Componente</th><th>Pin</th><th>Resistencia</th><th>ESP32 (etiqueta board)</th><th>GND</th></tr>
+        <tr><td>🟢 LED Verde</td><td>Patita larga (+)</td><td>220Ω en serie</td><td><strong>D2</strong> (fila inf.)</td><td>GND fila inf.</td></tr>
+      </table>
+
+      <div class="pin-note">
+        📍 Fila inferior izquierda→derecha: 3V3 · <strong>GND</strong> · D15 · <strong>D2</strong> · D4 · D16 · D17 · D5 · D18 · D19 · D21 · RXD · TXD · D22 · D23
+      </div>
+      <div class="pin-note">
+        💡 Patita LARGA del LED = positivo (+) → va al GPIO con resistencia. Patita CORTA = negativo (–) → va a GND.
+      </div>
+      <button class="check-btn" onclick="markStep('step2', this)">✓ LED conectado en protoboard</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" id="step3">
+    <div class="step-header" onclick="toggleStep('step3')">
+      <div class="step-num">3</div>
+      <div class="step-title">
+        <h3>Código: LED parpadeando</h3>
+        <p>El "Hola Mundo" del hardware embebido</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <p>Este código enciende y apaga el LED cada segundo. Si funciona, el ESP32 está vivo y tu cableado es correcto.</p>
+      <div class="code-block">
+        <div class="code-label">main.py — Blink LED</div>
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> time
+
+led = Pin(<span class="nm">2</span>, Pin.OUT)   <span class="cm"># D2 en el board</span>
+
+<span class="fn">print</span>(<span class="st">"Data Logger ESP32 — Iniciando..."</span>)
+
+<span class="kw">while</span> <span class="nm">True</span>:
+    led.value(<span class="nm">1</span>)
+    <span class="fn">print</span>(<span class="st">"LED ON"</span>)
+    time.sleep(<span class="nm">1</span>)
+    led.value(<span class="nm">0</span>)
+    <span class="fn">print</span>(<span class="st">"LED OFF"</span>)
+    time.sleep(<span class="nm">1</span>)</pre>
+      </div>
+      <div class="output-label">Lo que debes ver en Thonny:</div>
+      <div class="output-box">
+Data Logger ESP32 — Iniciando...<br>
+LED ON<br>
+LED OFF<br>
+LED ON<br>
+LED OFF<br>
+...
+      </div>
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <span>¿El LED no parpadea? Revisa: 1) Patita larga al GPIO, patita corta a GND. 2) Resistencia bien insertada. 3) Cable jumper en D2 exactamente.</span>
+      </div>
+      <button class="check-btn" onclick="markStep('step3', this)">✓ LED parpadea y veo LED ON/OFF en consola</button>
+    </div>
+  </div>
+
+  <!-- FASE 3 -->
+  <div class="phase">
+    <div class="phase-label">FASE 3</div>
+    <div class="phase-line"></div>
+    <div class="phase-title">Leer el sensor y mostrar datos en consola</div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" id="step4">
+    <div class="step-header" onclick="toggleStep('step4')">
+      <div class="step-num">4</div>
+      <div class="step-title">
+        <h3>Simular datos del sensor (sin sensor físico)</h3>
+        <p>Practicar la lógica antes de tener el hardware</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <p>Si aún no tienen el sensor, pueden simular lecturas con datos ficticios para avanzar con la lógica del Data Logger. Así no se bloquean esperando el componente.</p>
+      <div class="code-block">
+        <div class="code-label">main.py — Data Logger simulado</div>
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><span class="kw">import</span> time
+<span class="kw">import</span> random
+
+<span class="fn">print</span>(<span class="st">"=== DATA LOGGER ESP32 ==="</span>)
+<span class="fn">print</span>(<span class="st">"Iniciando lectura de sensores..."</span>)
+<span class="fn">print</span>(<span class="st">"-" </span><span class="op">*</span> <span class="nm">30</span>)
+
+lectura = <span class="nm">1</span>
+
+<span class="kw">while</span> <span class="nm">True</span>:
+    <span class="cm"># Simular temperatura entre 20 y 35 °C</span>
+    temperatura = <span class="fn">round</span>(random.uniform(<span class="nm">20.0</span>, <span class="nm">35.0</span>), <span class="nm">1</span>)
+    <span class="cm"># Simular humedad entre 40 y 80 %</span>
+    humedad = <span class="fn">round</span>(random.uniform(<span class="nm">40.0</span>, <span class="nm">80.0</span>), <span class="nm">1</span>)
+
+    <span class="fn">print</span>(<span class="st">f"[</span><span class="op">{</span>lectura<span class="op">}</span><span class="st">] Temp: </span><span class="op">{</span>temperatura<span class="op">}</span><span class="st"> °C | Humedad: </span><span class="op">{</span>humedad<span class="op">}</span><span class="st"> %"</span>)
+
+    lectura <span class="op">+=</span> <span class="nm">1</span>
+    time.sleep(<span class="nm">2</span>)   <span class="cm"># Leer cada 2 segundos</span></pre>
+      </div>
+      <div class="output-label">Lo que debes ver en Thonny:</div>
+      <div class="output-box">
+=== DATA LOGGER ESP32 ===<br>
+Iniciando lectura de sensores...<br>
+------------------------------<br>
+[1] Temp: 24.3 °C | Humedad: 61.2 %<br>
+[2] Temp: 27.8 °C | Humedad: 55.4 %<br>
+[3] Temp: 22.1 °C | Humedad: 73.9 %<br>
+...
+      </div>
+      <button class="check-btn" onclick="markStep('step4', this)">✓ Veo lecturas en consola cada 2 segundos</button>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step" id="step5">
+    <div class="step-header" onclick="toggleStep('step5')">
+      <div class="step-num">5</div>
+      <div class="step-title">
+        <h3>Agregar alerta visual con LED</h3>
+        <p>El LED se enciende si la temperatura es alta</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <p>Ahora combinamos el LED del paso anterior con los datos del sensor. Si la temperatura supera 30°C, el LED se enciende como alerta.</p>
+      <div class="code-block">
+        <div class="code-label">main.py — Data Logger + alerta LED</div>
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><span class="kw">from</span> machine <span class="kw">import</span> Pin
+<span class="kw">import</span> time, random
+
+led = Pin(<span class="nm">2</span>, Pin.OUT)
+UMBRAL_TEMP = <span class="nm">30.0</span>   <span class="cm"># °C — ajustable</span>
+
+<span class="fn">print</span>(<span class="st">"=== DATA LOGGER ESP32 CON ALERTAS ==="</span>)
+
+lectura = <span class="nm">1</span>
+<span class="kw">while</span> <span class="nm">True</span>:
+    temperatura = <span class="fn">round</span>(random.uniform(<span class="nm">18.0</span>, <span class="nm">38.0</span>), <span class="nm">1</span>)
+    humedad     = <span class="fn">round</span>(random.uniform(<span class="nm">40.0</span>, <span class="nm">80.0</span>), <span class="nm">1</span>)
+
+    <span class="kw">if</span> temperatura <span class="op">&gt;</span> UMBRAL_TEMP:
+        led.value(<span class="nm">1</span>)
+        estado = <span class="st">"⚠ ALERTA TEMP ALTA"</span>
+    <span class="kw">else</span>:
+        led.value(<span class="nm">0</span>)
+        estado = <span class="st">"✓ Normal"</span>
+
+    <span class="fn">print</span>(<span class="st">f"[</span><span class="op">{</span>lectura<span class="op">}</span><span class="st">] </span><span class="op">{</span>temperatura<span class="op">}</span><span class="st">°C | </span><span class="op">{</span>humedad<span class="op">}</span><span class="st">% | </span><span class="op">{</span>estado<span class="op">}</span><span class="st">"</span>)
+
+    lectura <span class="op">+=</span> <span class="nm">1</span>
+    time.sleep(<span class="nm">2</span>)</pre>
+      </div>
+      <div class="alert alert-ok">
+        <span class="alert-icon">✅</span>
+        <span>Si el LED se enciende cuando la temperatura simulada supera 30°C y se apaga cuando baja, la lógica del Data Logger está funcionando.</span>
+      </div>
+      <button class="check-btn" onclick="markStep('step5', this)">✓ LED reacciona a los datos — lógica funciona</button>
+    </div>
+  </div>
+
+  <!-- FASE 4 -->
+  <div class="phase">
+    <div class="phase-label">FASE 4</div>
+    <div class="phase-line"></div>
+    <div class="phase-title">Servidor web — ver datos en el navegador</div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" id="step6">
+    <div class="step-header" onclick="toggleStep('step6')">
+      <div class="step-num">6</div>
+      <div class="step-title">
+        <h3>ESP32 crea su propia red WiFi</h3>
+        <p>Access Point — sin necesidad de router</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <p>El ESP32 crea su propia red WiFi. Cualquier celular o laptop que se conecte a esa red puede ver los datos del Data Logger en el navegador.</p>
+      <div class="code-block">
+        <div class="code-label">main.py — Data Logger con servidor web</div>
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre><span class="kw">import</span> network, socket, time, random
+<span class="kw">from</span> machine <span class="kw">import</span> Pin
+
+led = Pin(<span class="nm">2</span>, Pin.OUT)
+UMBRAL = <span class="nm">30.0</span>
+
+<span class="cm"># ── Crear red WiFi ──────────────────────────</span>
+ap = network.WLAN(network.AP_IF)
+ap.active(<span class="nm">True</span>)
+ap.config(essid=<span class="st">'DataLogger-ESP32'</span>, password=<span class="st">'datalogger123'</span>)
+<span class="fn">print</span>(<span class="st">"Red WiFi creada:"</span>, ap.ifconfig()[<span class="nm">0</span>])
+
+<span class="cm"># ── Función para leer sensor (simulado) ─────</span>
+<span class="kw">def</span> <span class="fn">leer_sensor</span>():
+    temp = <span class="fn">round</span>(random.uniform(<span class="nm">18.0</span>, <span class="nm">38.0</span>), <span class="nm">1</span>)
+    hum  = <span class="fn">round</span>(random.uniform(<span class="nm">40.0</span>, <span class="nm">80.0</span>), <span class="nm">1</span>)
+    <span class="kw">return</span> temp, hum
+
+<span class="cm"># ── Servidor web ────────────────────────────</span>
+addr = socket.getaddrinfo(<span class="st">'0.0.0.0'</span>, <span class="nm">80</span>)[<span class="nm">0</span>][<span class="nm">-1</span>]
+s = socket.socket()
+s.bind(addr)
+s.listen(<span class="nm">1</span>)
+<span class="fn">print</span>(<span class="st">"Servidor escuchando en puerto 80..."</span>)
+
+<span class="kw">while</span> <span class="nm">True</span>:
+    cl, addr = s.accept()
+    temp, hum = <span class="fn">leer_sensor</span>()
+    alerta = temp <span class="op">&gt;</span> UMBRAL
+    led.value(<span class="nm">1</span> <span class="kw">if</span> alerta <span class="kw">else</span> <span class="nm">0</span>)
+    color = <span class="st">"#ff4444"</span> <span class="kw">if</span> alerta <span class="kw">else</span> <span class="st">"#00ff88"</span>
+    estado = <span class="st">"⚠ TEMP ALTA"</span> <span class="kw">if</span> alerta <span class="kw">else</span> <span class="st">"✓ Normal"</span>
+
+    html = <span class="st">f"""HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n
+&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;
+&lt;meta charset='UTF-8'&gt;
+&lt;meta http-equiv='refresh' content='3'&gt;
+&lt;title&gt;Data Logger ESP32&lt;/title&gt;
+&lt;style&gt;
+  body{{background:#0d0f14;color:#e8eaf0;font-family:monospace;
+       display:flex;flex-direction:column;align-items:center;
+       justify-content:center;min-height:100vh;margin:0}}
+  h1{{color:#ff6b35;font-size:2rem;margin-bottom:2rem}}
+  .card{{background:#161920;border:1px solid #2a2f3d;border-radius:12px;
+         padding:2rem 3rem;text-align:center;margin:0.5rem}}
+  .val{{font-size:3rem;font-weight:bold;color:{color}}}
+  .lbl{{color:#6b7280;font-size:0.9rem;margin-top:0.5rem}}
+  .estado{{margin-top:1.5rem;font-size:1.2rem;color:{color}}}
+  .sub{{color:#6b7280;font-size:0.75rem;margin-top:1rem}}
+&lt;/style&gt;&lt;/head&gt;&lt;body&gt;
+&lt;h1&gt;📊 Data Logger ESP32&lt;/h1&gt;
+&lt;div class='card'&gt;&lt;div class='val'&gt;{temp} °C&lt;/div&gt;&lt;div class='lbl'&gt;Temperatura&lt;/div&gt;&lt;/div&gt;
+&lt;div class='card'&gt;&lt;div class='val'&gt;{hum} %&lt;/div&gt;&lt;div class='lbl'&gt;Humedad&lt;/div&gt;&lt;/div&gt;
+&lt;div class='estado'&gt;{estado}&lt;/div&gt;
+&lt;div class='sub'&gt;Actualizando cada 3 seg · UAG Ingeniería de Software&lt;/div&gt;
+&lt;/body&gt;&lt;/html&gt;"""</span>
+
+    cl.send(html)
+    cl.close()</pre>
+      </div>
+      <div class="alert alert-info">
+        <span class="alert-icon">📱</span>
+        <span>Después de correr el código: 1) Conecta tu celular a la red WiFi <strong>DataLogger-ESP32</strong> (contraseña: datalogger123). 2) Abre el navegador y entra a <strong>192.168.4.1</strong>. 3) Verás el dashboard con temperatura y humedad actualizándose cada 3 segundos.</span>
+      </div>
+      <button class="check-btn" onclick="markStep('step6', this)">✓ Veo el dashboard en mi celular</button>
+    </div>
+  </div>
+
+  <!-- FASE 5 -->
+  <div class="phase">
+    <div class="phase-label">FASE 5</div>
+    <div class="phase-line"></div>
+    <div class="phase-title">Subir al repo de GitHub</div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step" id="step7">
+    <div class="step-header" onclick="toggleStep('step7')">
+      <div class="step-num">7</div>
+      <div class="step-title">
+        <h3>Commit y Push al repositorio</h3>
+        <p>Evidencia de avance en GitHub</p>
+      </div>
+      <span class="step-toggle">▼</span>
+    </div>
+    <div class="step-body">
+      <p>Guarda el archivo como <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace">main.py</code> en VS Code dentro de la carpeta del repo, luego sube con:</p>
+      <div class="code-block">
+        <div class="code-label">Terminal en VS Code</div>
+        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        <pre>git add .
+git commit -m <span class="st">"feat: data logger web server con alertas LED"</span>
+git push</pre>
+      </div>
+      <div class="alert alert-ok">
+        <span class="alert-icon">✅</span>
+        <span>Cuando el push funcione, el archivo <code style="font-family:'JetBrains Mono',monospace">main.py</code> aparecerá en su repositorio de GitHub. ¡Esa es la evidencia de la semana!</span>
+      </div>
+      <button class="check-btn" onclick="markStep('step7', this)">✓ main.py visible en GitHub</button>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div class="final-card" id="finalCard">
+    <h2>🎉 ¡Guía completa terminada!</h2>
+    <p>Pasaron de cero a tener un Data Logger con dashboard web funcionando.<br>
+    Siguiente paso: conectar el sensor real (DHT11 o HC-SR04) y reemplazar los datos simulados.</p>
+    <p style="margin-top:0.75rem;font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--accent)">
+      Próximo: sensor real → datos reales → TecoWeek 🏁
+    </p>
+  </div>
+
+</main>
+
+<script>
+  const steps = ['step1','step2','step3','step4','step5','step6','step7'];
+  const completed = new Set();
+
+  function toggleStep(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+
+  function markStep(id, btn) {
+    completed.add(id);
+    btn.classList.add('marked');
+    btn.textContent = '✓ Completado';
+    btn.disabled = true;
+    document.getElementById(id).classList.add('done');
+    document.getElementById(id).classList.remove('active');
+    updateProgress();
+    const idx = steps.indexOf(id);
+    if (idx < steps.length - 1) {
+      const next = document.getElementById(steps[idx+1]);
+      next.classList.add('active', 'open');
+      next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (completed.size === steps.length) {
+      document.getElementById('finalCard').classList.add('visible');
+    }
+  }
+
+  function updateProgress() {
+    const pct = Math.round((completed.size / steps.length) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+  }
+
+  function copyCode(btn) {
+    const pre = btn.parentElement.querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => btn.textContent = 'Copiar', 2000);
+    });
+  }
+
+  document.getElementById('step1').classList.add('active', 'open');
+</script>
+</body>
+</html>
