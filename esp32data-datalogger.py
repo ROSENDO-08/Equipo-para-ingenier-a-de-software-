@@ -245,10 +245,10 @@ while True:
             temp, hum, press = leer_sensor()
             hi = indice_calor(temp, hum)
 
-            alerta_temp = temp > UMBRAL_TEMP
+            alerta_temp = temp > 40
             alerta_hum  = hum  > UMBRAL_HUM
             alerta      = alerta_temp
-            led.value(1 if alerta_temp else 0)
+            led.value(1 if temp > 40 else 0)
 
             pct_temp  = int(max(0, min(100, (temp  - 18) / 20 * 100)))
             pct_hum   = int(max(0, min(100, (hum   - 40) / 45 * 100)))
